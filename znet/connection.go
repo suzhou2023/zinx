@@ -19,20 +19,24 @@ type Connection struct {
 	isClosed bool
 
 	//MsgId和对应处理方法的消息管理模块
-	msgHandle ziface.IMsgHandle
+	msgHandler ziface.IMsgHandle
 
 	//告知该链接已经退出/停止的channel
 	ExitBuffChan chan bool
+
+	//无缓冲管道，用于读、写两个goroutine之间的消息通信
+	msgChan chan []byte
 }
 
 // 创建连接的方法
-func NewConntion(conn *net.TCPConn, connID uint32, msgHandle ziface.IMsgHandle) *Connection {
+func NewConntion(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
 	c := &Connection{
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
-		msgHandle:    msgHandle,
+		msgHandler:   msgHandler,
 		ExitBuffChan: make(chan bool, 1),
+		msgChan:      make(chan []byte),
 	}
 
 	return c
@@ -83,15 +87,62 @@ func (c *Connection) StartReader() {
 		}
 
 		//从绑定好的消息和对应的处理方法中执行对应的Handle方法
-		go c.msgHandle.DoMsgHandler(&req)
+		go c.msgHandler.DoMsgHandler(&req)
 	}
+}
+
+/*
+写消息Goroutine，用户将数据发送给客户端
+*/
+func (c *Connection) StartWriter() {
+	fmt.Println("[Writer Goroutine is running]")
+	defer fmt.Println(c.RemoteAddr().String(), "[conn Writer exit!]")
+
+	for {
+		select {
+		case data := <-c.msgChan:
+			//有数据要写给客户端
+			if _, err := c.Conn.Write(data); err != nil {
+				fmt.Println("Send Data error:, ", err, " Conn Writer exit")
+				return
+			}
+		case <-c.ExitBuffChan:
+			//conn已经关闭
+			return
+		}
+	}
+}
+
+// 直接将Message数据发送数据给远程的TCP客户端
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
+	if c.isClosed == true {
+		return errors.New("Connection closed when send msg")
+	}
+	//将data封包，并且发送
+	dp := NewDataPack()
+	msg := NewMsgPackage(msgId, data)
+	fmt.Println("msg.DataLen:", msg.DataLen)
+
+	bytes, err := dp.Pack(NewMsgPackage(msgId, data))
+	if err != nil {
+		fmt.Println("Pack error msg id = ", msgId)
+		return errors.New("Pack error msg ")
+	}
+
+	//将之前直接回写给conn.Write的方法 改为 发送给Channel 供Writer读取
+	c.msgChan <- bytes
+
+	return nil
 }
 
 // 启动连接，让当前连接开始工作
 func (c *Connection) Start() {
 
-	//开启处理该链接读取到客户端数据之后的请求业务
+	//1 开启用户从客户端读取数据流程的Goroutine
 	go c.StartReader()
+
+	//2 开启用于写回客户端数据流程的Goroutine
+	go c.StartWriter()
 
 	for {
 		select {
@@ -135,30 +186,4 @@ func (c *Connection) GetConnID() uint32 {
 // 获取远程客户端地址信息
 func (c *Connection) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
-}
-
-// 直接将Message数据发送数据给远程的TCP客户端
-func (c *Connection) SendMsg(msgId uint32, data []byte) error {
-	if c.isClosed == true {
-		return errors.New("Connection closed when send msg")
-	}
-	//将data封包，并且发送
-	dp := NewDataPack()
-	msg := NewMsgPackage(msgId, data)
-	fmt.Println("msg.DataLen:", msg.DataLen)
-
-	bytes, err := dp.Pack(NewMsgPackage(msgId, data))
-	if err != nil {
-		fmt.Println("Pack error msg id = ", msgId)
-		return errors.New("Pack error msg ")
-	}
-
-	//写回客户端
-	if _, err := c.Conn.Write(bytes); err != nil {
-		fmt.Println("Write msg id ", msgId, " error ")
-		c.ExitBuffChan <- true
-		return errors.New("conn Write error")
-	}
-
-	return nil
 }
