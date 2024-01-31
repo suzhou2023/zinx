@@ -1,0 +1,21 @@
+.idea
+.vscode
+
+/zinx_app_demo/mmo_game/game_client/client_Data/
+/zinx_app_demt/mmo_game/mmo_game_log/
+*.log
+
+### bin
+examples/zinx_server/zinx_server
+examples/zinx_server/server
+examples/zinx_client/client
+
+.DS_Store
+
+
+log
+
+/examples/zinx_websocket/minicode/node_modules
+/examples/zinx_websocket/minicode/miniprogram_npm
+
+rebase
