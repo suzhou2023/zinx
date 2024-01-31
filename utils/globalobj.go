@@ -55,5 +55,5 @@ func init() {
 	}
 
 	//从配置文件中加载一些用户配置的参数
-	GlobalObject.Reload()
+	//GlobalObject.Reload()
 }
