@@ -2,7 +2,9 @@ package utils
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"os"
+	"path/filepath"
 	"zinx/ziface"
 )
 
@@ -17,8 +19,10 @@ type GlobalObj struct {
 	Name      string         //当前服务器名称
 	Version   string         //当前Zinx版本号
 
-	MaxPacketSize uint32 //都需数据包的最大值
-	MaxConn       int    //当前服务器主机允许的最大链接个数
+	MaxPacketSize    uint32 //都需数据包的最大值
+	MaxConn          int    //当前服务器主机允许的最大链接个数
+	WorkerPoolSize   uint32 // 工作池数量
+	MaxWorkerTaskLen uint32 // 最大任务数
 }
 
 /*
@@ -28,15 +32,29 @@ var GlobalObject *GlobalObj
 
 // 读取用户的配置文件
 func (g *GlobalObj) Reload() {
-	data, err := ioutil.ReadFile("conf/zinx.json")
+	rootDir, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		fmt.Println("Error getting current directory:", err)
+		return
 	}
-	//将json数据解析到struct中
-	//fmt.Printf("json :%s\n", data)
-	err = json.Unmarshal(data, &GlobalObject)
+
+	jsonPath := filepath.Join(rootDir, "conf/zinx.json")
+
+	// 打开 JSON 文件
+	file, err := os.Open(jsonPath)
 	if err != nil {
-		panic(err)
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	// 创建 JSON 解码器
+	decoder := json.NewDecoder(file)
+
+	// 使用解码器解码 JSON 数据
+	if err := decoder.Decode(&GlobalObject); err != nil {
+		fmt.Println("Error decoding JSON:", err)
+		return
 	}
 }
 
@@ -55,5 +73,5 @@ func init() {
 	}
 
 	//从配置文件中加载一些用户配置的参数
-	//GlobalObject.Reload()
+	GlobalObject.Reload()
 }
