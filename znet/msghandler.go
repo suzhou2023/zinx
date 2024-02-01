@@ -16,9 +16,9 @@ type MsgHandle struct {
 func NewMsgHandle() *MsgHandle {
 	return &MsgHandle{
 		Apis:           make(map[uint32]ziface.IRouter),
-		WorkerPoolSize: utils.GlobalObject.WorkerPoolSize,
+		WorkerPoolSize: utils.GlobalObj.WorkerPoolSize,
 		//一个worker对应一个queue
-		TaskQueue: make([]chan ziface.IRequest, utils.GlobalObject.WorkerPoolSize),
+		TaskQueue: make([]chan ziface.IRequest, utils.GlobalObj.WorkerPoolSize),
 	}
 }
 
@@ -40,7 +40,7 @@ func (mh *MsgHandle) StartWorkerPool() {
 	for i := 0; i < int(mh.WorkerPoolSize); i++ {
 		//一个worker被启动
 		//给当前worker对应的任务队列开辟空间
-		mh.TaskQueue[i] = make(chan ziface.IRequest, utils.GlobalObject.MaxWorkerTaskLen)
+		mh.TaskQueue[i] = make(chan ziface.IRequest, utils.GlobalObj.MaxWorkerTaskLen)
 		//启动当前Worker，阻塞的等待对应的任务队列是否有消息传递进来
 		go mh.StartOneWorker(i, mh.TaskQueue[i])
 	}

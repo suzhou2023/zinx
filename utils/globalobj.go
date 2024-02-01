@@ -12,7 +12,7 @@ import (
 存储一切有关Zinx框架的全局参数，供其他模块使用
 一些参数也可以通过 用户根据 zinx.json来配置
 */
-type GlobalObj struct {
+type GlobalObject struct {
 	TcpServer ziface.IServer //当前Zinx的全局Server对象
 	Host      string         //当前服务器主机IP
 	TcpPort   int            //当前服务器主机监听端口号
@@ -23,15 +23,16 @@ type GlobalObj struct {
 	MaxConn          int    //当前服务器主机允许的最大链接个数
 	WorkerPoolSize   uint32 // 工作池数量
 	MaxWorkerTaskLen uint32 // 最大任务数
+	MaxMsgChanLen    uint32
 }
 
 /*
 定义一个全局的对象
 */
-var GlobalObject *GlobalObj
+var GlobalObj *GlobalObject
 
 // 读取用户的配置文件
-func (g *GlobalObj) Reload() {
+func (g *GlobalObject) Reload() {
 	rootDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println("Error getting current directory:", err)
@@ -52,7 +53,7 @@ func (g *GlobalObj) Reload() {
 	decoder := json.NewDecoder(file)
 
 	// 使用解码器解码 JSON 数据
-	if err := decoder.Decode(&GlobalObject); err != nil {
+	if err := decoder.Decode(&GlobalObj); err != nil {
 		fmt.Println("Error decoding JSON:", err)
 		return
 	}
@@ -63,7 +64,7 @@ func (g *GlobalObj) Reload() {
 */
 func init() {
 	//初始化GlobalObject变量，设置一些默认值
-	GlobalObject = &GlobalObj{
+	GlobalObj = &GlobalObject{
 		Name:          "ZinxServerApp",
 		Version:       "V0.4",
 		TcpPort:       7777,
@@ -73,5 +74,5 @@ func init() {
 	}
 
 	//从配置文件中加载一些用户配置的参数
-	GlobalObject.Reload()
+	GlobalObj.Reload()
 }

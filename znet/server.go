@@ -24,6 +24,14 @@ type Server struct {
 
 	//当前Server的消息管理模块，用来绑定MsgId和对应的处理方法
 	msgHandler ziface.IMsgHandle
+
+	//当前Server的连接管理器
+	ConnMgr ziface.IConnManager
+
+	//该Server的连接创建时Hook函数
+	OnConnStart func(conn ziface.IConnection)
+	//该Server的连接断开时的Hook函数
+	OnConnStop func(conn ziface.IConnection)
 }
 
 /*
@@ -31,14 +39,15 @@ type Server struct {
 */
 func NewServer() ziface.IServer {
 	// 先初始化全局配置文件
-	utils.GlobalObject.Reload()
+	utils.GlobalObj.Reload()
 
 	s := &Server{
-		Name:       utils.GlobalObject.Name,
+		Name:       utils.GlobalObj.Name,
 		IPVersion:  "tcp4",
-		IP:         utils.GlobalObject.Host,
-		Port:       utils.GlobalObject.TcpPort,
+		IP:         utils.GlobalObj.Host,
+		Port:       utils.GlobalObj.TcpPort,
 		msgHandler: NewMsgHandle(),
+		ConnMgr:    NewConnManager(), //创建ConnManager
 	}
 
 	return s
@@ -48,9 +57,9 @@ func NewServer() ziface.IServer {
 func (s *Server) Start() {
 	fmt.Printf("[START] Server name: %s, listenner at IP: %s, Port %d is starting\n", s.Name, s.IP, s.Port)
 	fmt.Printf("[Zinx] Version: %s, MaxConn: %d,  MaxPacketSize: %d\n",
-		utils.GlobalObject.Version,
-		utils.GlobalObject.MaxConn,
-		utils.GlobalObject.MaxPacketSize)
+		utils.GlobalObj.Version,
+		utils.GlobalObj.MaxConn,
+		utils.GlobalObj.MaxPacketSize)
 
 	// 开启一个go去做服务端Linster业务
 	go func() {
@@ -65,7 +74,7 @@ func (s *Server) Start() {
 		}
 
 		//2 监听服务器地址
-		listenner, err := net.ListenTCP(s.IPVersion, addr)
+		listener, err := net.ListenTCP(s.IPVersion, addr)
 		if err != nil {
 			fmt.Println("listen", s.IPVersion, "err", err)
 			return
@@ -81,16 +90,20 @@ func (s *Server) Start() {
 		//3 启动server网络连接业务
 		for {
 			//3.1 阻塞等待客户端建立连接请求
-			conn, err := listenner.AcceptTCP()
+			conn, err := listener.AcceptTCP()
 			if err != nil {
 				fmt.Println("Accept err ", err)
 				continue
 			}
 
-			//3.2 TODO Server.Start() 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
+			//3.2 设置服务器最大连接控制,如果超过最大连接，那么则关闭此新的连接
+			if s.ConnMgr.Len() >= utils.GlobalObj.MaxConn {
+				conn.Close()
+				continue
+			}
 
 			//3.3 TODO Server.Start() 处理该新连接请求的 业务 方法， 此时应该有 handler 和 conn是绑定的
-			dealConn := NewConntion(conn, cid, s.msgHandler)
+			dealConn := NewConntion(s, conn, cid, s.msgHandler)
 			cid++
 
 			//3.4 启动当前链接的处理业务
@@ -102,7 +115,8 @@ func (s *Server) Start() {
 func (s *Server) Stop() {
 	fmt.Println("[STOP] Zinx server , name ", s.Name)
 
-	//TODO  Server.Stop() 将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
+	//将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
+	s.ConnMgr.ClearConn()
 }
 
 func (s *Server) Serve() {
@@ -121,4 +135,35 @@ func (s *Server) AddRouter(msgId uint32, router ziface.IRouter) {
 	s.msgHandler.AddRouter(msgId, router)
 
 	fmt.Println("Add Router success!")
+}
+
+// 获取连接管理器
+func (s *Server) GetConnMgr() ziface.IConnManager {
+	return s.ConnMgr
+}
+
+// 设置该Server的连接创建时Hook函数
+func (s *Server) SetOnConnStart(hookFunc func(ziface.IConnection)) {
+	s.OnConnStart = hookFunc
+}
+
+// 设置该Server的连接断开时的Hook函数
+func (s *Server) SetOnConnStop(hookFunc func(ziface.IConnection)) {
+	s.OnConnStop = hookFunc
+}
+
+// 调用连接OnConnStart Hook函数
+func (s *Server) CallOnConnStart(conn ziface.IConnection) {
+	if s.OnConnStart != nil {
+		fmt.Println("---> CallOnConnStart....")
+		s.OnConnStart(conn)
+	}
+}
+
+// 调用连接OnConnStop Hook函数
+func (s *Server) CallOnConnStop(conn ziface.IConnection) {
+	if s.OnConnStop != nil {
+		fmt.Println("---> CallOnConnStop....")
+		s.OnConnStop(conn)
+	}
 }

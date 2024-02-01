@@ -13,7 +13,6 @@ import (
 模拟客户端
 */
 func clientTest() {
-
 	fmt.Println("Client Test ... start")
 	//3秒之后发起测试请求，给服务端开启服务的机会
 	time.Sleep(1 * time.Second)
@@ -93,7 +92,7 @@ func TestServer(t *testing.T) {
 	//1 创建一个server 句柄 s
 	s := NewServer()
 
-	s.AddRouter(&PingRouter{})
+	s.AddRouter(0, &PingRouter{})
 
 	/*
 		客户端测试
