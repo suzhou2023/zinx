@@ -23,7 +23,7 @@ type Connection struct {
 	isClosed bool
 
 	//MsgId和对应处理方法的消息管理模块
-	msgHandler ziface.IMsgHandle
+	msgHandler ziface.IMsgHandler
 
 	//告知该链接已经退出/停止的channel
 	ExitBuffChan chan bool
@@ -31,12 +31,12 @@ type Connection struct {
 	//无缓冲管道，用于读、写两个goroutine之间的消息通信
 	msgChan chan []byte
 
-	//有关冲管道，用于读、写两个goroutine之间的消息通信
+	//有缓冲管道，用于读、写两个goroutine之间的消息通信
 	msgBuffChan chan []byte
 }
 
 // 创建连接的方法
-func NewConntion(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandle) *Connection {
+func NewConntion(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) *Connection {
 	c := &Connection{
 		TcpServer:    server,
 		Conn:         conn,
@@ -57,7 +57,7 @@ func NewConntion(server ziface.IServer, conn *net.TCPConn, connID uint32, msgHan
 /* 处理conn读数据的Goroutine */
 func (c *Connection) StartReader() {
 	fmt.Println("Reader Goroutine is  running")
-	defer fmt.Println(c.RemoteAddr().String(), " conn reader exit!")
+	defer fmt.Println(c.RemoteAddr().String(), "conn reader exit!")
 	defer c.Stop()
 
 	for {
@@ -103,7 +103,7 @@ func (c *Connection) StartReader() {
 			c.msgHandler.SendMsgToTaskQueue(&req)
 		} else {
 			//从绑定好的消息和对应的处理方法中执行对应的Handle方法
-			go c.msgHandler.DoMsgHandler(&req)
+			go c.msgHandler.Handle(&req)
 		}
 	}
 }

@@ -1,7 +1,7 @@
 {
-  "Name": "demo server",
+  "Name": "zinx server",
   "Host": "127.0.0.1",
   "TcpPort": 7777,
-  "MaxConn": 100,
+  "MaxConn": 1000000,
   "WorkerPoolSize": 10
 }

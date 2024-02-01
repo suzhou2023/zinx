@@ -2,44 +2,30 @@ package main
 
 import (
 	"fmt"
-	"runtime"
-	"sync"
 	"time"
 )
 
 func main() {
-	var wg sync.WaitGroup
+	// 创建一个大小为 3 的整数通道
+	intChannel := make(chan int, 3)
 
-	// 创建协程的数量
-	numGoroutines := 100000 // 可以调整这个值来观察不同数量的协程对内存的影响
+	// 启动三个协程，每个协程往通道写入一个整数
+	go func() {
+		intChannel <- 1
+	}()
+	go func() {
+		intChannel <- 2
+	}()
+	go func() {
+		intChannel <- 3
+	}()
 
-	wg.Add(numGoroutines)
+	// 主协程等待一段时间
+	time.Sleep(time.Second)
 
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			defer wg.Done()
-			time.Sleep(10 * time.Second) // 让协程做一些工作
-		}()
-	}
+	// 从通道中读取数据
+	fmt.Println(<-intChannel)
+	fmt.Println(<-intChannel)
+	fmt.Println(<-intChannel)
 
-	// 打印当前内存占用
-	printMemUsage()
-
-	// 等待所有协程完成
-	wg.Wait()
-}
-
-func printMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	// 打印内存占用情况
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }

@@ -69,7 +69,7 @@ func init() {
 		Version:       "V0.4",
 		TcpPort:       7777,
 		Host:          "127.0.0.1",
-		MaxConn:       100,
+		MaxConn:       1000000,
 		MaxPacketSize: 4096,
 	}
 

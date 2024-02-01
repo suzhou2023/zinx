@@ -23,13 +23,14 @@ type Server struct {
 	Port int
 
 	//当前Server的消息管理模块，用来绑定MsgId和对应的处理方法
-	msgHandler ziface.IMsgHandle
+	msgHandler ziface.IMsgHandler
 
 	//当前Server的连接管理器
 	ConnMgr ziface.IConnManager
 
 	//该Server的连接创建时Hook函数
 	OnConnStart func(conn ziface.IConnection)
+
 	//该Server的连接断开时的Hook函数
 	OnConnStop func(conn ziface.IConnection)
 }
@@ -46,7 +47,7 @@ func NewServer() ziface.IServer {
 		IPVersion:  "tcp4",
 		IP:         utils.GlobalObj.Host,
 		Port:       utils.GlobalObj.TcpPort,
-		msgHandler: NewMsgHandle(),
+		msgHandler: NewMsgHandler(),
 		ConnMgr:    NewConnManager(), //创建ConnManager
 	}
 
@@ -84,8 +85,7 @@ func (s *Server) Start() {
 		fmt.Println("start Zinx server", s.Name, "success, now listenning...")
 
 		//TODO server.go 应该有一个自动生成ID的方法
-		var cid uint32
-		cid = 0
+		var connID uint32 = 0
 
 		//3 启动server网络连接业务
 		for {
@@ -103,8 +103,8 @@ func (s *Server) Start() {
 			}
 
 			//3.3 TODO Server.Start() 处理该新连接请求的 业务 方法， 此时应该有 handler 和 conn是绑定的
-			dealConn := NewConntion(s, conn, cid, s.msgHandler)
-			cid++
+			dealConn := NewConntion(s, conn, connID, s.msgHandler)
+			connID++
 
 			//3.4 启动当前链接的处理业务
 			go dealConn.Start()
@@ -113,7 +113,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Stop() {
-	fmt.Println("[STOP] Zinx server , name ", s.Name)
+	fmt.Println("[STOP] Zinx server, name:", s.Name)
 
 	//将其他需要清理的连接信息或者其他信息 也要一并停止或者清理
 	s.ConnMgr.ClearConn()
